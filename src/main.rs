@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::NaiveDateTime;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -51,24 +51,42 @@ enum Commands {
 fn main() {
     let options = Cli::parse();
     match options.command {
-        Commands::List => show_list(),
+        Commands::List => {
+            let calender = read_calender();
+            show_list(&calender);
+        }
         Commands::Add {
             subject,
             start,
             end,
-        } => add_schedule(subject, start, end),
+        } => {
+            let mut calender = read_calender();
+            if add_schedule(&mut calender, subject, start, end) {
+                save_calender(&calender);
+                println!("予定を追加しました");
+            } else {
+                println!("エラー：予定が重複しています");
+            }
+        }
     }
 }
 
-fn show_list() {
-    let file: Calendar = {
-        let file = File::open(SCHEDULE_FILE).unwrap();
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).unwrap()
-    };
+fn read_calender() -> Calendar {
+    let file = File::open(SCHEDULE_FILE).unwrap();
+    let reader = BufReader::new(file);
+    serde_json::from_reader(reader).unwrap()
+}
+
+fn save_calender(calendar: &Calendar) {
+    let file = File::create(SCHEDULE_FILE).unwrap();
+    let writer = BufWriter::new(file);
+    serde_json::to_writer(writer, calendar).unwrap();
+}
+
+fn show_list(calendar: &Calendar) {
     // 予定の表示
     println!("ID\tStart\tEnd\tSubject");
-    for schedule in file.schedules {
+    for schedule in &calendar.schedules {
         println!(
             "{}\t{}\t{}\t{}",
             schedule.id, schedule.start, schedule.end, schedule.subject
@@ -76,13 +94,12 @@ fn show_list() {
     }
 }
 
-fn add_schedule(subject: String, start: NaiveDateTime, end: NaiveDateTime) {
-    let mut calendar: Calendar = {
-        let file = File::open(SCHEDULE_FILE).unwrap();
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).unwrap()
-    };
-
+fn add_schedule(
+    calendar: &mut Calendar,
+    subject: String,
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+) -> bool {
     // 予定の作成
     let id = calendar.schedules.len() as u64;
     let new_schedule = Schedule {
@@ -96,24 +113,19 @@ fn add_schedule(subject: String, start: NaiveDateTime, end: NaiveDateTime) {
     for schedule in &calendar.schedules {
         if schedule.intersects(&new_schedule) {
             println!("エラー：予定が重複しています");
-            return;
+            return false;
         }
     }
 
     // 予定の追加
     calendar.schedules.push(new_schedule);
-
-    // 予定の保存
-    {
-        let file = File::create(SCHEDULE_FILE).unwrap();
-        let writer = BufWriter::new(file);
-        serde_json::to_writer(writer, &calendar).unwrap();
-    }
-    println!("予定を追加しました");
+    true
 }
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
     use super::*;
     use rstest::rstest;
 
@@ -158,5 +170,40 @@ mod tests {
             end: native_date_time(2024, 1, 1, 20, 0, 0),
         };
         assert_eq!(schedule.intersects(&new_schedule), should_intersect);
+    }
+
+    #[test]
+    fn test_add_schedule() {
+        let mut calendar = Calendar {
+            schedules: vec![Schedule {
+                id: 0,
+                subject: "テスト予定".to_string(),
+                start: native_date_time(2024, 11, 19, 11, 22, 33),
+                end: native_date_time(2024, 11, 19, 22, 33, 44),
+            }],
+        };
+        add_schedule(
+            &mut calendar,
+            "テスト予定2".to_string(),
+            native_date_time(2023, 12, 8, 9, 0, 0),
+            native_date_time(2023, 12, 8, 10, 0, 0),
+        );
+        let expected = Calendar {
+            schedules: vec![
+                Schedule {
+                    id: 0,
+                    subject: "テスト予定".to_string(),
+                    start: native_date_time(2024, 11, 19, 11, 22, 33),
+                    end: native_date_time(2024, 11, 19, 22, 33, 44),
+                },
+                Schedule {
+                    id: 1,
+                    subject: "テスト予定2".to_string(),
+                    start: native_date_time(2023, 12, 8, 9, 0, 0),
+                    end: native_date_time(2023, 12, 8, 10, 0, 0),
+                },
+            ],
+        };
+        assert_eq!(calendar, expected);
     }
 }
