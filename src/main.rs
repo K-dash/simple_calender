@@ -16,7 +16,7 @@ struct Schedule {
 
 impl Schedule {
     fn intersects(&self, other: &Schedule) -> bool {
-        self.start < other.end
+        self.start < other.end && other.start < self.end
     }
 }
 
@@ -223,5 +223,24 @@ mod tests {
             end: native_date_time(2024, 12, 15, 11, 0, 0),
         };
         assert!(!schedule.intersects(&new_schedule));
+    }
+
+    #[test]
+    // 既存予定: 2024年1月1日の19:15から19:45まで
+    // 新規予定: 2024年1月1日の19:00から20:00まで
+    fn test_schedule_intersects_6() {
+        let schedule = Schedule {
+            id: 1,
+            subject: "既存予定6".to_string(),
+            start: native_date_time(2024, 1, 1, 19, 15, 0),
+            end: native_date_time(2024, 1, 1, 19, 45, 0),
+        };
+        let new_schedule = Schedule {
+            id: 2,
+            subject: "新規予定6".to_string(),
+            start: native_date_time(2024, 1, 1, 19, 0, 0),
+            end: native_date_time(2024, 1, 1, 20, 0, 0),
+        };
+        assert!(schedule.intersects(&new_schedule));
     }
 }
