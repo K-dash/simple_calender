@@ -115,6 +115,7 @@ fn add_schedule(subject: String, start: NaiveDateTime, end: NaiveDateTime) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     fn native_date_time(
         year: i32,
@@ -130,117 +131,32 @@ mod tests {
             .unwrap()
     }
 
-    #[test]
-    fn test_schedule_intersects_1() {
-        // 2024年1月1日の18:15から19:15までの既存予定
+    #[rstest]
+    #[case(18, 15, 18, 45, false)]
+    #[case(18, 15, 19, 45, true)]
+    #[case(18, 15, 20, 45, true)]
+    #[case(19, 15, 19, 45, true)]
+    #[case(19, 15, 20, 45, true)]
+    #[case(20, 15, 20, 45, false)]
+    fn test_schedule_intersects(
+        #[case] h0: u32,
+        #[case] m0: u32,
+        #[case] h1: u32,
+        #[case] m1: u32,
+        #[case] should_intersect: bool,
+    ) {
         let schedule = Schedule {
             id: 1,
-            subject: "既存予定1".to_string(),
-            start: native_date_time(2024, 1, 1, 18, 15, 0),
-            end: native_date_time(2024, 1, 1, 19, 15, 0),
+            subject: "既存予定".to_string(),
+            start: native_date_time(2024, 1, 1, h0, m0, 0),
+            end: native_date_time(2024, 1, 1, h1, m1, 0),
         };
-        // 2024年1月1日の19:00から20:00までの新規予定
         let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定1".to_string(),
+            id: 999,
+            subject: "新規予定".to_string(),
             start: native_date_time(2024, 1, 1, 19, 0, 0),
             end: native_date_time(2024, 1, 1, 20, 0, 0),
         };
-        assert!(schedule.intersects(&new_schedule));
-    }
-
-    #[test]
-    // 既存予定: 2024年1月1日の19:45から20:45まで
-    // 新規予定: 2024年1月1日の19:00から20:00まで
-    fn test_schedule_intersects_2() {
-        let schedule = Schedule {
-            id: 1,
-            subject: "既存予定2".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 45, 0),
-            end: native_date_time(2024, 1, 1, 20, 45, 0),
-        };
-        let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定2".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 0, 0),
-            end: native_date_time(2024, 1, 1, 20, 0, 0),
-        };
-        assert!(schedule.intersects(&new_schedule));
-    }
-
-    #[test]
-    // 既存予定: 2024年1月1日の18:30から20:15まで
-    // 新規予定: 2024年1月1日の19:00から20:00まで
-    fn test_schedule_intersects_3() {
-        let schedule = Schedule {
-            id: 1,
-            subject: "既存予定3".to_string(),
-            start: native_date_time(2024, 1, 1, 18, 30, 0),
-            end: native_date_time(2024, 1, 1, 20, 15, 0),
-        };
-        let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定3".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 0, 0),
-            end: native_date_time(2024, 1, 1, 20, 0, 0),
-        };
-        assert!(schedule.intersects(&new_schedule));
-    }
-
-    #[test]
-    // 既存予定: 2024年1月1日の20:15から20:45まで
-    // 新規予定: 2024年1月1日の19:00から20:00まで
-    fn test_schedule_intersects_4() {
-        let schedule = Schedule {
-            id: 1,
-            subject: "既存予定4".to_string(),
-            start: native_date_time(2024, 1, 1, 20, 15, 0),
-            end: native_date_time(2024, 1, 1, 20, 45, 0),
-        };
-        let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定4".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 0, 0),
-            end: native_date_time(2024, 1, 1, 20, 0, 0),
-        };
-        assert!(!schedule.intersects(&new_schedule));
-    }
-
-    #[test]
-    // 既存予定: 2024年12月8日の09:00から10:30まで
-    // 新規予定: 2024年12月15日の10:00から11:00まで
-    fn test_schedule_intersects_5() {
-        let schedule = Schedule {
-            id: 1,
-            subject: "既存予定5".to_string(),
-            start: native_date_time(2024, 12, 8, 9, 0, 0),
-            end: native_date_time(2024, 12, 8, 10, 30, 0),
-        };
-        let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定5".to_string(),
-            start: native_date_time(2024, 12, 15, 10, 0, 0),
-            end: native_date_time(2024, 12, 15, 11, 0, 0),
-        };
-        assert!(!schedule.intersects(&new_schedule));
-    }
-
-    #[test]
-    // 既存予定: 2024年1月1日の19:15から19:45まで
-    // 新規予定: 2024年1月1日の19:00から20:00まで
-    fn test_schedule_intersects_6() {
-        let schedule = Schedule {
-            id: 1,
-            subject: "既存予定6".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 15, 0),
-            end: native_date_time(2024, 1, 1, 19, 45, 0),
-        };
-        let new_schedule = Schedule {
-            id: 2,
-            subject: "新規予定6".to_string(),
-            start: native_date_time(2024, 1, 1, 19, 0, 0),
-            end: native_date_time(2024, 1, 1, 20, 0, 0),
-        };
-        assert!(schedule.intersects(&new_schedule));
+        assert_eq!(schedule.intersects(&new_schedule), should_intersect);
     }
 }
